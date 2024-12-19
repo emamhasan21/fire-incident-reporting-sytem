@@ -1,0 +1,142 @@
+<?php
+session_start();
+require '../config/config.php'; // Database connection
+
+if ($_SESSION['role'] !== 'admin') {
+    header("Location: login.php");
+    exit();
+}
+
+// Fetch reports
+$reports = $conn->query("SELECT reports.*, users.first_name, users.surname FROM reports JOIN users ON reports.user_id = users.id");
+
+// Fetch users
+$users = $conn->query("SELECT * FROM users");
+
+$title = "Admin Dashboard";
+include 'header.php';
+?>
+<div class="container mx-auto my-10">
+    <h1 class="text-3xl font-bold mb-5">Admin Dashboard</h1>
+    
+    <h2 class="text-2xl font-bold mb-3">Incident Reports</h2>
+    <div id="reports_table">
+        <table class="min-w-full bg-white">
+            <thead>
+                <tr>
+                    <th class="py-2 px-4 border">ID</th>
+                    <th class="py-2 px-4 border">User Name</th>
+                    <th class="py-2 px-4 border">Description</th>
+                    <th class="py-2 px-4 border">GPS Location</th>
+                    <th class="py-2 px-4 border">Casualties</th>
+                    <th class="py-2 px-4 border">Status</th>
+                    <th class="py-2 px-4 border">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php while ($report = $reports->fetch_assoc()) { ?>
+                <tr>
+                    <td class="py-2 px-4 border"><?php echo $report['id']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $report['first_name'] . ' ' . $report['surname']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $report['description']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $report['gps_location']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $report['casualties']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $report['status']; ?></td>
+                    <td class="py-2 px-4 border">
+                        <form action="update_report_status.php" method="post">
+                            <input type="hidden" name="report_id" value="<?php echo $report['id']; ?>">
+                            <select name="status" class="border rounded">
+                                <option value="unassigned" <?php echo $report['status'] == 'unassigned' ? 'selected' : ''; ?>>Unassigned</option>
+                                <option value="assigned" <?php echo $report['status'] == 'assigned' ? 'selected' : ''; ?>>Assigned</option>
+                                <option value="done" <?php echo $report['status'] == 'done' ? 'selected' : ''; ?>>Done</option>
+                            </select>
+                            <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Update</button>
+                        </form>
+                    </td>
+                </tr>
+                <?php } ?>
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="text-2xl font-bold mt-10 mb-3">Users</h2>
+    <div id="users_table">
+        <table class="min-w-full bg-white">
+            <thead>
+                <tr>
+                    <th class="py-2 px-4 border">ID</th>
+                    <th class="py-2 px-4 border">First Name</th>
+                    <th class="py-2 px-4 border">Surname</th>
+                    <th class="py-2 px-4 border">Email</th>
+                    <th class="py-2 px-4 border">Phone Number</th>
+                    <th class="py-2 px-4 border">Role</th>
+                    <th class="py-2 px-4 border">Banned</th>
+                    <th class="py-2 px-4 border">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php while ($user = $users->fetch_assoc()) { ?>
+                <tr>
+                    <td class="py-2 px-4 border"><?php echo $user['id']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $user['first_name']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $user['surname']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $user['email']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $user['phone_number']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $user['role']; ?></td>
+                    <td class="py-2 px-4 border"><?php echo $user['banned'] ? 'Yes' : 'No'; ?></td>
+                    <td class="py-2 px-4 border">
+                        <form action="toggle_ban_user.php" method="post">
+                            <input type="hidden" name="user_id" value="<?php echo $user['id']; ?>">
+                            <button type="submit" class="bg-red-500 text-white px-4 py-2 rounded"><?php echo $user['banned'] ? 'Unban' : 'Ban'; ?></button>
+                        </form>
+                    </td>
+                </tr>
+                <?php } ?>
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="text-2xl font-bold mt-10 mb-3">Post News</h2>
+    <form action="post_news.php" method="post">
+        <div class="mb-4">
+            <label class="block text-gray-700">Content</label>
+            <textarea name="content" class="w-full border rounded p-2"></textarea>
+        </div>
+        <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Post</button>
+    </form>
+
+</div>
+
+<script>
+    function fetchReports() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', 'fetch_reports.php', true);
+        xhr.onload = function() {
+            if (this.status === 200) {
+                document.getElementById('reports_table').innerHTML = this.responseText;
+            }
+        };
+        xhr.send();
+    }
+
+    function fetchUsers() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', 'fetch_users.php', true);
+        xhr.onload = function() {
+            if (this.status === 200) {
+                document.getElementById('users_table').innerHTML = this.responseText;
+            }
+        };
+        xhr.send();
+    }
+
+    // Fetch reports and users every 5 seconds
+    setInterval(fetchReports, 5000);
+    setInterval(fetchUsers, 5000);
+
+    // Initial fetch
+    fetchReports();
+    fetchUsers();
+</script>
+
+<?php include 'footer.php'; ?>
